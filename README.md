@@ -25,6 +25,7 @@ Interactive at most twice: the sudo password and the GitHub browser login.
 | Vault | clone + seed device-local Obsidian Git `data.json` from the tracked template | same |
 | Claude Code | native installer (skipped if present) — **binary only**, see step 5 | same; skipped on 32-bit ARM with a warning |
 | Obsidian app | brew cask | Flatpak (flathub); skipped on headless hosts |
+| Claude workspace + VPN | **opt-in** (`MACHINE_SETUP_WORKSPACE=1`): hub skeleton + permission guardrails, then a checklist | same, without the macOS VPN line |
 
 The script never reimplements what the dotfiles repo already does — on macOS it hands
 off to `dotfiles/install.sh` (Brewfile, oh-my-zsh ordering traps, Terminal.app profile),
@@ -46,6 +47,7 @@ hand, put per-host identity in `~/.config/tmux/local.conf`.
 | `GH_TOKEN` | skip interactive GitHub login (containers/CI) |
 | `GH_OWNER` | GitHub account to clone from (default `pauli3j`) |
 | `DOTFILES_SKIP_TERMINAL=1` etc. | passed through to `dotfiles/install.sh` on macOS |
+| `MACHINE_SETUP_WORKSPACE=1` | opt into the Claude workspace + VPN add-on (step 8). Off by default — a plain bootstrap shouldn't write permission policy |
 
 ## After it runs (manual, GUI)
 
@@ -58,23 +60,29 @@ hand, put per-host identity in `~/.config/tmux/local.conf`.
    not tofu boxes.
 3. Linux: log out/in for the zsh login shell; optional per-host tmux colors/prefix in
    `~/.config/tmux/local.conf` (see `local.conf.example` in the tmux repo).
-4. **Claude Code workspace.** The script installs the Claude Code *binary* and nothing
+4. **Claude Code workspace.** The base script installs the Claude Code *binary* and nothing
    else — no charter, no permission guardrails, no skills, no MCP endpoints. A machine that
-   has only run this script has a Claude that does not know the house conventions and cannot
-   reach any tenant. Restore, in this order:
-   1. `~/.claude/CLAUDE.md` — global charter: vault pointer, writing rules, recap-on-wrap-up.
-   2. `~/<hub>/CLAUDE.md` — workspace charter for the projects hub.
-   3. `~/<hub>/.claude/settings.json` — **permission guardrails, including the `git init` and
-      `git config --global` denials.** Not optional: those two denials exist because a work
-      email once landed in a personal repo. A fresh machine has no `settings.json` at all,
-      only whatever `settings.local.json` the current session has accumulated.
-   4. `~/.claude/skills/` — the user-level skills.
-   5. MCP endpoints — needs a per-device token; the old machine's token should be revoked
-      when a machine is rebuilt.
+   has only run the base script has a Claude that does not know the house conventions and
+   cannot reach any tenant.
 
-   **Copy 1–4 from an already-configured machine rather than rewriting them** — they are
-   prose that drifted into its current form deliberately, and reconstructing it from memory
-   loses that. Values and the token procedure are in the private vault runbooks, not here.
+   Run the add-on to get the automatable half:
+
+   ```bash
+   MACHINE_SETUP_WORKSPACE=1 bash setup.sh
+   ```
+
+   It creates the hub skeleton (`reports/`, `scratch/`, `~/.claude/skills/`) and writes
+   `<hub>/.claude/settings.json` with the **`git init` and `git config --global` denials** —
+   which exist because an unconfigured git invents a `user@hostname` identity instead of
+   erroring, and that once put a work email in a personal repo. An existing `settings.json`
+   is never overwritten. Note that a machine with no `settings.json` has no policy at all,
+   only whatever `settings.local.json` a session happened to accumulate.
+
+   Then, by hand: copy `~/.claude/CLAUDE.md`, `<hub>/CLAUDE.md`, and `~/.claude/skills/`
+   **from an already-configured machine rather than rewriting them** — that prose reached its
+   current form deliberately and reconstructing it from memory loses that. Register the MCP
+   endpoints last; that needs a per-device token, and a rebuilt machine's old token should be
+   revoked. Values and the token procedure are in the private vault runbooks, not here.
 5. macOS, if this machine needs the home VPN: install **WireGuard** from the Mac App
    Store (id `1451685025`) — it is not brew-installable, and `mas` cannot install an app
    the Apple ID has never acquired, so this stays manual. Then add the tunnel in the app

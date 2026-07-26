@@ -263,6 +263,65 @@ else
   fi
 fi
 
+# --- 8. Claude workspace + VPN (optional add-on) --------------------------------
+# Opt in:  MACHINE_SETUP_WORKSPACE=1
+# Off by default — a plain bootstrap shouldn't write permission policy.
+#
+# THIS REPO IS PUBLIC. Nothing secret goes in this block: no endpoints, tokens,
+# tunnel addresses, or charter prose. Those live in the private vault — drop a
+# snippet in $VAULT/machine-setup.d/*.sh (sourced in step 6) and it runs with all
+# the private values available, without ever touching this file.
+#
+# What this can legitimately automate is small: the directory skeleton and the
+# permission guardrails. The rest is prose to copy and a token to mint, both of
+# which need a human and a second machine.
+if [ "${MACHINE_SETUP_WORKSPACE:-0}" = 1 ]; then
+  HUB="$(dirname "$PROJECTS")"
+  log "workspace add-on: scaffolding $HUB"
+  mkdir -p "$HUB/reports" "$HUB/scratch" "$HOME/.claude/skills"
+
+  # Permission guardrails. `git init` and `git config --global` are denied because
+  # an unconfigured git INVENTS a user@hostname identity rather than erroring
+  # (useConfigOnly), and that once put a work email in a personal repo. A machine
+  # with no settings.json has no such deny — only whatever settings.local.json a
+  # session has accumulated, which is not a policy.
+  _ws="$HUB/.claude/settings.json"
+  if [ -f "$_ws" ]; then
+    log "workspace settings.json present — left alone (never clobber policy)"
+  else
+    mkdir -p "$HUB/.claude"
+    cat > "$_ws" <<'JSON'
+{
+  "permissions": {
+    "deny": [
+      "Bash(git init)",
+      "Bash(git init:*)",
+      "Bash(git config --global:*)"
+    ]
+  }
+}
+JSON
+    log "wrote permission guardrails -> $_ws"
+  fi
+
+  echo
+  echo "Workspace add-on — what still needs a human:"
+  echo "  a. Copy from an already-configured machine (do NOT rewrite from memory):"
+  echo "       ~/.claude/CLAUDE.md          global charter + writing rules"
+  echo "       $HUB/CLAUDE.md    workspace charter"
+  echo "       ~/.claude/skills/            user-level skills"
+  echo "  b. MCP endpoints: mint this device its own token and register the tenants."
+  echo "     Revoke the old entry if this machine was rebuilt. Procedure lives in the"
+  echo "     private vault runbook, not here."
+  if [ "$OS" = macos ] && [ ! -d /Applications/WireGuard.app ]; then
+    echo "  c. WireGuard: install from the Mac App Store (id 1451685025) — not"
+    echo "     brew-installable, and 'mas' can't install an app this Apple ID has"
+    echo "     never acquired. Then add the tunnel and enroll its public key."
+    echo "     The tunnel config stays out of every repo: it embeds a private key."
+  fi
+  echo
+fi
+
 # --- done -----------------------------------------------------------------------
 log "machine-setup complete"
 echo
