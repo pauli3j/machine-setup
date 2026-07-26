@@ -51,8 +51,11 @@ hand, put per-host identity in `~/.config/tmux/local.conf`.
 
 1. Obsidian → "Open folder as vault" → the cloned vault → trust + enable community
    plugins. Obsidian Git then auto-backs-up every 15 min and pulls on launch.
-2. macOS: open a new Terminal tab — "Paulie" profile, banner, and tmux status-bar
-   glyphs should render as shapes, not tofu boxes.
+2. macOS: **quit and reopen Terminal.app** — windows opened before the run keep their
+   old profile, and the freshly installed Nerd Font only joins glyph fallback after a
+   relaunch. A running tmux session survives the quit (`tmux attach` afterwards). Then
+   the "Paulie" profile, banner, and tmux status-bar glyphs should render as shapes,
+   not tofu boxes.
 3. Linux: log out/in for the zsh login shell; optional per-host tmux colors/prefix in
    `~/.config/tmux/local.conf` (see `local.conf.example` in the tmux repo).
 

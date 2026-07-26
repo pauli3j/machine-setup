@@ -270,8 +270,10 @@ echo "Manual steps that need a human + GUI:"
 echo "  1. Obsidian: open '$VAULT' as a vault, trust it, enable community plugins."
 echo "     (Obsidian Git then auto-syncs every 15 min and pulls on launch.)"
 if [ "$OS" = macos ]; then
-  echo "  2. Open a new Terminal tab — 'Paulie' profile, oh-my-zsh banner, tmux glyphs."
-  echo "     Confirm the status-bar pills draw as shapes, not boxes."
+  echo "  2. Quit and REOPEN Terminal.app (first run only): open windows keep their old"
+  echo "     profile, and glyph fallback into the just-installed Nerd Font needs the"
+  echo "     relaunch. A tmux session survives the quit — 'tmux attach' afterwards."
+  echo "     Then confirm the status-bar pills draw as shapes, not tofu boxes."
 else
   echo "  2. Log out/in (or exec zsh) to pick up the new login shell."
   echo "     Optional: per-host tmux identity in ~/.config/tmux/local.conf (see local.conf.example)."
