@@ -13,7 +13,7 @@
 #   macOS: delegates to dotfiles/install.sh — Brewfile, oh-my-zsh, symlinks,
 #          tmux theme, Terminal.app profile. This script never reimplements it.
 #   Linux: mirrors the essential steps itself (dotfiles/install.sh is macOS-only)
-#          and makes zsh the login shell.
+#          and makes zsh the login shell. apt, dnf, and pacman (Arch / Omarchy).
 #
 # Written for bash 3.2 (macOS system bash): no associative arrays, no mapfile.
 set -euo pipefail
@@ -37,9 +37,10 @@ case "$(uname -s)" in
 esac
 [ "$(id -u)" = "0" ] && SUDO=""
 if [ "$OS" = linux ]; then
-  if have apt-get; then PKG=apt
-  elif have dnf;   then PKG=dnf
-  else die "no supported package manager (need apt-get or dnf)"
+  if have apt-get;  then PKG=apt
+  elif have dnf;    then PKG=dnf
+  elif have pacman; then PKG=pacman
+  else die "no supported package manager (need apt-get, dnf, or pacman)"
   fi
   case "$ARCH" in armv6l|armv7l) ARMHF=1 ;; esac
   # $DISPLAY is empty over SSH even on desktops — ask systemd / the session dirs instead.
@@ -111,7 +112,7 @@ else
       $SUDO apt-get update -qq
       $SUDO apt-get install -y gh
     fi
-  else
+  elif [ "$PKG" = dnf ]; then
     $SUDO dnf install -y git curl zsh tmux jq cowsay util-linux-user gcc make unzip
     if ! have gh; then
       log "installing gh from GitHub's dnf repo"
@@ -120,6 +121,33 @@ else
       $SUDO dnf config-manager --add-repo https://cli.github.com/packages/rpm/gh-cli.repo 2>/dev/null \
         || $SUDO dnf config-manager addrepo --overwrite --from-repofile=https://cli.github.com/packages/rpm/gh-cli.repo
       $SUDO dnf install -y gh --repo gh-cli
+    fi
+  else
+    # Arch (and Omarchy, which is Arch underneath). Two things are simpler here
+    # than on apt/dnf: the GitHub CLI is a plain [extra] package, so there is no
+    # third-party repo to wire up, and chsh ships inside util-linux rather than a
+    # separate package.
+    #
+    # NEVER `-Sy` without `-u`. Refreshing the sync db and then installing
+    # without upgrading is the documented way to break an Arch box (a partial
+    # upgrade links new packages against old libraries). So install against the
+    # db already on disk first — the same no-refresh approach Omarchy's own
+    # `omarchy pkg add` takes — and escalate to a full `-Syu` only if that fails
+    # because the on-disk db is too stale to resolve a package.
+    #
+    # ttf-jetbrains-mono-nerd is load-bearing, not cosmetic: it carries the
+    # powerline/Nerd codepoints the tmux status bar draws with. Same reason the
+    # Brewfile pins the matching cask on macOS. (apt/dnf have no equivalent line
+    # yet — those hosts rely on whatever Nerd Font is already present.)
+    _arch_pkgs=(git curl zsh tmux jq cowsay unzip base-devel ttf-jetbrains-mono-nerd)
+    # The package is named `github-cli`, NOT `gh` — `pacman -S gh` fails outright.
+    # Guarded like the apt/dnf branches, and for a second reason here: mise and
+    # asdf both hand out their own gh, and installing the system one over the top
+    # just leaves a second binary that PATH order hides anyway.
+    have gh || _arch_pkgs+=(github-cli)
+    if ! $SUDO pacman -S --needed --noconfirm "${_arch_pkgs[@]}"; then
+      warn "pacman could not resolve against the on-disk db — refreshing (full upgrade) and retrying"
+      $SUDO pacman -Syu --needed --noconfirm "${_arch_pkgs[@]}"
     fi
   fi
 fi
@@ -253,7 +281,11 @@ if [ "$OS" = macos ]; then
 elif [ "$HEADLESS" = 1 ]; then
   log "headless host — skipping the Obsidian app (vault cloned for CLI/Claude use)"
 else
-  have flatpak || { ensure_sudo; if [ "$PKG" = apt ]; then $SUDO apt-get install -y flatpak; else $SUDO dnf install -y flatpak; fi; }
+  have flatpak || { ensure_sudo; case "$PKG" in
+      apt)    $SUDO apt-get install -y flatpak ;;
+      pacman) $SUDO pacman -S --needed --noconfirm flatpak ;;
+      *)      $SUDO dnf install -y flatpak ;;
+    esac; }
   flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo 2>/dev/null \
     || $SUDO flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
   if flatpak info md.obsidian.Obsidian >/dev/null 2>&1; then
@@ -334,7 +366,15 @@ if [ "$OS" = macos ]; then
   echo "     relaunch. A tmux session survives the quit — 'tmux attach' afterwards."
   echo "     Then confirm the status-bar pills draw as shapes, not tofu boxes."
 else
-  echo "  2. Log out/in (or exec zsh) to pick up the new login shell."
+  echo "  2. Log OUT and back in to pick up the new login shell. 'exec zsh' fixes"
+  echo "     only the shell you type it in — two things cache the old one and both"
+  echo "     outlive chsh: a RUNNING tmux server keeps the default-shell it detected"
+  echo "     when it started, and the systemd user session carries its own SHELL,"
+  echo "     which is what a terminal launched from the desktop inherits. So new"
+  echo "     windows go on spawning the old shell until you log out."
+  echo "     To skip the logout, fix both in place:"
+  echo '       tmux set -g default-shell "$(command -v zsh)"'
+  echo '       systemctl --user set-environment SHELL="$(command -v zsh)"'
   echo "     Optional: per-host tmux identity in ~/.config/tmux/local.conf (see local.conf.example)."
 fi
 }

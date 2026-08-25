@@ -15,10 +15,10 @@ Interactive at most twice: the sudo password and the GitHub browser login.
 
 ## What it does
 
-| Step | macOS | Linux (apt / dnf) |
+| Step | macOS | Linux (apt / dnf / pacman) |
 |---|---|---|
 | Dev tools | Homebrew (installs Xcode CLT itself) | git, curl, build tools via the package manager |
-| Base packages | via the dotfiles `Brewfile` | zsh, tmux, jq, cowsay + gh from GitHub's official repo |
+| Base packages | via the dotfiles `Brewfile` | zsh, tmux, jq, cowsay + gh (GitHub's repo on apt/dnf; `github-cli` from `[extra]` on Arch) |
 | GitHub | `gh auth login` (browser) → `gh auth setup-git` | same; `GH_TOKEN` skips the prompt |
 | Dotfiles | clones with submodules, then **delegates to `dotfiles/install.sh`** | clones, then mirrors it: oh-my-zsh (unattended), `~/.zshrc` + `~/.zprofile` symlinks, tmux theme into `~/.config/tmux/`, `chsh` to zsh |
 | Git identity | `~/.gitconfig` include → `dotfiles/git/gitconfig` (`useConfigOnly` guardrail) | same |
@@ -35,7 +35,8 @@ hand, put per-host identity in `~/.config/tmux/local.conf`.
 ## Prerequisites
 
 - **macOS:** nothing. A factory-fresh machine works — run the one-liner in Terminal.app.
-- **Linux:** `curl` and (unless root) `sudo`. Minimal containers: `apt-get update && apt-get install -y curl sudo` first.
+- **Linux:** `curl` and (unless root) `sudo`. Minimal containers: `apt-get update && apt-get install -y curl sudo` first
+  (Arch: `pacman -Syu --noconfirm curl sudo`). Debian/Ubuntu, Fedora, and Arch/Omarchy are all handled.
 - The dotfiles and vault repos are **private**, so the GitHub login step must succeed
   before the clones; that's why this repo is public and they aren't.
 
@@ -101,7 +102,17 @@ GH_TOKEN=$(gh auth token) docker run -e GH_TOKEN -it --rm ubuntu:24.04 bash -c '
 
 Exercises the apt branch, token auth, root path (`SUDO=""`), headless Obsidian skip,
 and the Linux Claude Code install. Swap in `fedora:latest` (with `dnf install -y curl sudo`)
-for the dnf branch.
+for the dnf branch, or `archlinux:latest` for pacman:
+
+```bash
+GH_TOKEN=$(gh auth token) docker run -e GH_TOKEN -it --rm archlinux:latest bash -c '
+  pacman -Syu --noconfirm curl sudo &&
+  curl -fsSL https://raw.githubusercontent.com/pauli3j/machine-setup/main/setup.sh | bash'
+```
+
+The Arch image runs as root, so that run also covers `SUDO=""` through the pacman branch.
+Note it exercises the *container* path only: the two shell caches that make `chsh` look like
+a no-op (a running tmux server, the systemd user session) need a real desktop to reproduce.
 
 ## Lint
 
