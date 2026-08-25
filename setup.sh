@@ -14,6 +14,8 @@
 #          tmux theme, Terminal.app profile. This script never reimplements it.
 #   Linux: mirrors the essential steps itself (dotfiles/install.sh is macOS-only)
 #          and makes zsh the login shell. apt, dnf, and pacman (Arch / Omarchy).
+#          On an Omarchy host it then delegates the desktop (Hyprland, shell,
+#          theme, terminals) to dotfiles/omarchy/install.sh.
 #
 # Written for bash 3.2 (macOS system bash): no associative arrays, no mapfile.
 set -euo pipefail
@@ -222,6 +224,18 @@ else
     ensure_sudo
     $SUDO chsh -s "$_zsh" "${USER:-$(id -un)}"
     log "login shell -> zsh (takes effect next login)"
+  fi
+
+  # Omarchy desktop config. dotfiles/omarchy/install.sh owns the Hyprland, shell,
+  # theme-overlay and terminal side; this script must not reimplement any of it —
+  # the same delegate-never-reimplement rule as the macOS path above.
+  if have omarchy; then
+    if [ -x "$DOTFILES/omarchy/install.sh" ]; then
+      log "delegating to dotfiles/omarchy/install.sh (Hyprland, shell, theme, terminals)"
+      "$DOTFILES/omarchy/install.sh"
+    else
+      warn "Omarchy host, but dotfiles/omarchy/install.sh is missing — desktop config not applied"
+    fi
   fi
 fi
 

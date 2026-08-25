@@ -20,6 +20,7 @@ Interactive at most twice: the sudo password and the GitHub browser login.
 | Dev tools | Homebrew (installs Xcode CLT itself) | git, curl, build tools via the package manager |
 | Base packages | via the dotfiles `Brewfile` | zsh, tmux, jq, cowsay + gh (GitHub's repo on apt/dnf; `github-cli` from `[extra]` on Arch) |
 | GitHub | `gh auth login` (browser) → `gh auth setup-git` | same; `GH_TOKEN` skips the prompt |
+| Desktop | Terminal.app profile via dotfiles/install.sh | Omarchy hosts: delegated to `dotfiles/omarchy/install.sh` (Hyprland, shell, theme, terminals) |
 | Dotfiles | clones with submodules, then **delegates to `dotfiles/install.sh`** | clones, then mirrors it: oh-my-zsh (unattended), `~/.zshrc` + `~/.zprofile` symlinks, tmux theme into `~/.config/tmux/`, `chsh` to zsh |
 | Git identity | `~/.gitconfig` include → `dotfiles/git/gitconfig` (`useConfigOnly` guardrail) | same |
 | Vault | clone + seed device-local Obsidian Git `data.json` from the tracked template | same |
