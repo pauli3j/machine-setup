@@ -427,7 +427,11 @@ else
   echo "     which is what a terminal launched from the desktop inherits. So new"
   echo "     windows go on spawning the old shell until you log out."
   echo "     To skip the logout, fix both in place:"
+  # Single quotes are deliberate on the next two lines: these are literal commands
+  # for the reader to paste, so $(command -v zsh) must reach THEIR shell unexpanded.
+  # shellcheck disable=SC2016
   echo '       tmux set -g default-shell "$(command -v zsh)"'
+  # shellcheck disable=SC2016
   echo '       systemctl --user set-environment SHELL="$(command -v zsh)"'
   echo "     Optional: per-host tmux identity in ~/.config/tmux/local.conf (see local.conf.example)."
 fi
