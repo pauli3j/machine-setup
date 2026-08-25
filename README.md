@@ -45,7 +45,8 @@ hand, put per-host identity in `~/.config/tmux/local.conf`.
 
 | Var | Effect |
 |---|---|
-| `MACHINE_SETUP_PROJECTS` | where repos land (default `~/claw/projects`) |
+| `MACHINE_SETUP_PROJECTS` | where repos land. Unset, an **existing** dotfiles checkout wins: `~/Work`, then `~/clawh/projects`, then `~/claw/projects`; a fresh box gets `~/claw/projects` |
+| `MACHINE_SETUP_VAULT` | the vault checkout. Unset, searches `<projects>/obsidian-vault` then `~/Documents/obsidian-vault` |
 | `GH_TOKEN` | skip interactive GitHub login (containers/CI) |
 | `GH_OWNER` | GitHub account to clone from (default `pauli3j`) |
 | `DOTFILES_SKIP_TERMINAL=1` etc. | passed through to `dotfiles/install.sh` on macOS |

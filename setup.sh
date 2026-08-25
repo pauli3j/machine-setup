@@ -7,9 +7,11 @@
 # Interactive at most twice: sudo password, GitHub browser login (skipped when
 # GH_TOKEN is set — the container-test path).
 #
-# What lands where:
-#   ~/claw/projects/dotfiles        zsh + tmux + terminal config (private repo, submodule inside)
-#   ~/claw/projects/obsidian-vault  the vault; Obsidian Git plugin seeded per-device
+# What lands where. An EXISTING checkout always wins over a default, because these
+# machines disagree about the location and a second checkout silently drifts from the
+# one the symlinks actually point at. Searched in order, first hit wins:
+#   dotfiles  ~/Work, ~/clawh/projects, ~/claw/projects   (fresh box: ~/claw/projects)
+#   vault     <projects>/obsidian-vault, ~/Documents/obsidian-vault
 #   macOS: delegates to dotfiles/install.sh — Brewfile, oh-my-zsh, symlinks,
 #          tmux theme, Terminal.app profile. This script never reimplements it.
 #   Linux: mirrors the essential steps itself (dotfiles/install.sh is macOS-only)
@@ -17,13 +19,48 @@
 #          On an Omarchy host it then delegates the desktop (Hyprland, shell,
 #          theme, terminals) to dotfiles/omarchy/install.sh.
 #
+# MACHINE_SETUP_PROJECTS / MACHINE_SETUP_VAULT override those two searches. Both
+# resolved paths print at the start of the run, so a wrong guess is visible before
+# anything gets cloned.
+#
 # Written for bash 3.2 (macOS system bash): no associative arrays, no mapfile.
 set -euo pipefail
 
 GH_OWNER="${GH_OWNER:-pauli3j}"
-PROJECTS="${MACHINE_SETUP_PROJECTS:-$HOME/claw/projects}"
+
+# Where the repos live. MACHINE_SETUP_PROJECTS still wins outright; otherwise PREFER
+# AN EXISTING CHECKOUT over any hardcoded default.
+#
+# These boxes genuinely disagree: ~/clawh/projects on the Mac (dotfiles/README.md),
+# ~/Work on the Omarchy box, and this script assumed ~/claw/projects. Cloning to a
+# default while a checkout already exists elsewhere yields two copies that silently
+# drift — the exact trap tmux/CLAUDE.md documents. It is worse than untidy here: the
+# dotfiles symlinks point INTO one specific checkout, so guessing wrong leaves this
+# script updating a copy that nothing on the box actually reads.
+if [ -n "${MACHINE_SETUP_PROJECTS:-}" ]; then
+  PROJECTS="$MACHINE_SETUP_PROJECTS"
+else
+  PROJECTS=""
+  for _d in "$HOME/Work" "$HOME/clawh/projects" "$HOME/claw/projects"; do
+    [ -d "$_d/dotfiles/.git" ] && { PROJECTS="$_d"; break; }
+  done
+  # Nothing checked out yet — a genuinely fresh box. Use the documented default.
+  [ -n "$PROJECTS" ] || PROJECTS="$HOME/claw/projects"
+fi
 DOTFILES="$PROJECTS/dotfiles"
-VAULT="$PROJECTS/obsidian-vault"
+
+# The vault does not always sit beside dotfiles (it lives in ~/Documents on the
+# Omarchy box), so resolve it separately — same no-duplicate-clone reasoning.
+if [ -n "${MACHINE_SETUP_VAULT:-}" ]; then
+  VAULT="$MACHINE_SETUP_VAULT"
+else
+  VAULT=""
+  for _d in "$PROJECTS/obsidian-vault" "$HOME/Documents/obsidian-vault"; do
+    [ -d "$_d/.git" ] && { VAULT="$_d"; break; }
+  done
+  [ -n "$VAULT" ] || VAULT="$PROJECTS/obsidian-vault"
+fi
+unset _d
 
 log()  { printf '\033[1;32m==>\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33mWARN:\033[0m %s\n' "$*" >&2; }
@@ -79,6 +116,9 @@ link() {
 }
 
 main() {
+
+log "dotfiles: ${DOTFILES/#$HOME/~}"
+log "vault:    ${VAULT/#$HOME/~}"
 
 # --- 1. base packages -----------------------------------------------------------
 if [ "$OS" = macos ]; then
